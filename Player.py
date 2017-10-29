@@ -1,16 +1,9 @@
+from collections import Iterable
 from enum import Enum, auto
-from Items import ItemType
-from Stats import *
+from item import ItemType
+from entity import Entity
+from stats import *
 
-
-class Trigger(Enum):
-    HIT = auto()
-    ROUND_START = auto()
-    BATTLE_START = auto()
-    HIT_BY_ENEMY = auto()
-    BATTLE_END = auto()
-    BATTLE_WON = auto()
-    BATTLE_LOST = auto()
 
 
 class Inventory:
@@ -19,9 +12,9 @@ class Inventory:
         self.content = content or []
         self.size = size
 
-    def add(self, item):
-        if len(self.content) < self.size:
-            self.content.append(item)
+    def add(self, items):
+        if len(self.content) + len(items) < self.size:
+            self.content.extend(items)
 
     def remove(self, item):
         self.content.remove(item)
@@ -46,59 +39,11 @@ class EntityLevel:
             self.entity.level_up()
 
 
-class Entity:
-
-    def __init__(self, stats):
-        self.stats = stats
-        self.effects = []
-
-    def receive_damage(self, amount, type):
-        amount = self._calculate_damage(amount, type)
-        self.remove_stats(Stats({Stat.HP: amount}))
-        if self.stats.get(Stat.HP) <= 0:
-            """self.die()"""
-
-    def _calculate_damage(self, amount, type):
-        if type == DamageType.TRUE_DAMAGE:
-            return amount
-        return amount - self.stats[Stat.ARMOR] - self.stats[DAMAGE_TYPE_TO_RESISTANCE[type]]
-
-    def heal(self, amount):
-        amount = min(amount, self.missing_hp())
-        self.add_stats(Stats({Stat.HP: amount}))
-
-    def missing_hp(self):
-        return self.stats.get(Stat.MAX_HP) - self.stats.get(Stat.HP)
-
-    def add_stats(self, stats):
-        self.stats += stats
-
-    def remove_stats(self, stats):
-        self.stats -= stats
-
-    def on_trigger(self, trigger):
-        for effect in self.effects:
-            if effect.trigger == trigger:
-                effect.apply()
-
-    def add_effect(self, effect):
-        self.effects.append(effect)
-
-    def remove_effect(self, effect):
-        self.effects.remove(effect)
-
-    def has_effect(self, effect):
-        return effect in self.effects
-
-    def get_enemy(self):
-        return self.enemy
-
-
 class Player(Entity):
 
-    def __init__(self, stats, inventory):
+    def __init__(self, stats):
         super().__init__(stats)
-        self.inventory = inventory
+        self.inventory = Inventory()
         self.level = EntityLevel(self, 100, lambda lvl: 100*lvl, 99)
         self.item_slots = {
             ItemType.WEAPON: None,
@@ -112,8 +57,16 @@ class Player(Entity):
             ItemType.OFFHAND: None
         }
 
-    def pick_up(self, item):
-        self.inventory.add(item)
+    def pick_up(self, items):
+        if not isinstance(items, Iterable):
+            items = (items,)
+        self.inventory.add(items)
+
+    def combine_gems(self, g1, g2, g3):
+        if all(type(g) == type(g1) and g.rank == g1.rank for g in (g2, g3)):
+            g1.rank_up()
+            self.inventory.remove(g2)
+            self.inventory.remove(g3)
 
     def level_up(self):
         pass
@@ -121,9 +74,9 @@ class Player(Entity):
     def equip(self, item):
         previous_item = self.item_slots[item.type]
         if previous_item is not None:
-            self.remove_stats(previous_item.stats)
+            previous_item.on_unequip()
             self.inventory.add(previous_item)
-        self.add_stats(item.stats)
+        item.on_equip()
         self.inventory.remove(item)
 
     def __str__(self):

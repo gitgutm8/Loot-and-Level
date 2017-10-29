@@ -1,4 +1,5 @@
-import collections
+import random
+from collections import defaultdict, Iterable
 from enum import Enum, auto
 
 
@@ -28,11 +29,11 @@ class Stat(Enum):
 
 
 DAMAGE_TYPE_TO_RESISTANCE = {
-    DamageType.FIRE: Stat.FIRE_RES,
-    DamageType.PLANT: Stat.PLANT_RES,
-    DamageType.WATER: Stat.WATER_RES,
-    DamageType.ICE: Stat.ICE_RES,
-    DamageType.DARKNESS: Stat.DARKNESS_RES,
+    DamageType.FIRE     : Stat.FIRE_RES,
+    DamageType.PLANT    : Stat.PLANT_RES,
+    DamageType.WATER    : Stat.WATER_RES,
+    DamageType.ICE      : Stat.ICE_RES,
+    DamageType.DARKNESS : Stat.DARKNESS_RES,
     DamageType.LIGHTNING: Stat.LIGHTNING_RES
 }
 
@@ -40,35 +41,44 @@ DAMAGE_TYPE_TO_RESISTANCE = {
 class Stats:
 
     def __init__(self, initial_values={}):
-        self._dict = {}
-        for stat_type in Stat:
-            self._dict[stat_type] = Stats._Stat()
+        self._dict = defaultdict(Stats._Stat)
         for stat_type, val in initial_values.items():
-            if isinstance(val, collections.Iterable):
+            if isinstance(val, Iterable):
                 self._dict[stat_type] = Stats._Stat(*val)
             else:
                 self._dict[stat_type] = Stats._Stat(val)
 
+    @classmethod
+    def from_random_between(cls, lower, upper):
+        new_stats = {}
+        for stat_type, min_stat in lower:
+            max_stat = upper._dict[stat_type]
+            new_stats[stat_type] = (
+                random.randint(min_stat.add, max_stat.add),
+                random.randint(min_stat.mul, max_stat.mul),
+            )
+        return cls(new_stats)
+
     def __iadd__(self, other):
-        for stat_type in Stat:
-            self._dict[stat_type] += other._dict[stat_type]
+        for stat_type, val in other._dict.items():
+            self._dict[stat_type] += val
         return self
 
     def __isub__(self, other):
-        for stat_type in Stat:
-            self._dict[stat_type] -= other._dict[stat_type]
+        for stat_type, val in other._dict.items():
+            self._dict[stat_type] -= val
         return self
 
-    def get(self, stat_type):
-        return self._dict[stat_type].value()
-
     def __getitem__(self, key):
-        return self.get(key)
+        return self._dict[key].value()
+
+    def __iter__(self):
+        return iter(self._dict.items())
 
     def __str__(self):
         return '\n'.join(f'{stat_type}: {val}'
                          for stat_type, val
-                         in vars(self).items())
+                         in self._dict.items())
 
     class _Stat:
 
@@ -77,26 +87,20 @@ class Stats:
             self.mul = mul
 
         def __iadd__(self, other):
-            self.change_add(other.add)
-            self.change_mul(other.mul)
+            self.add += other.add
+            self.mul *= other.mul
             return self
 
         def __isub__(self, other):
-            self.change_add(-other.add)
-            self.change_mul(1/other.mul)
+            self.add -= other.add
+            self.mul /= other.mul
             return self
-
-        def change_add(self, amount):
-            self.add += amount
-
-        def change_mul(self, amount):
-            self.mul *= amount
 
         def value(self):
             return self.add * self.mul
 
         def __str__(self):
-            return str(self.value())
+            return f'<{self.add}, {self.mul}>'
 
 
 if __name__ == '__main__':

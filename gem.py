@@ -1,8 +1,8 @@
 import random
 from enum import Enum, auto
-from Stats import *
-from Player import Trigger
-from Effects import *
+from stats import *
+from entity import BattleTrigger
+from effect import DotEffect, RandomEffect, EffectAddingEffect
 
 
 class GemRank(Enum):
@@ -15,7 +15,6 @@ class GemRank(Enum):
     ROYAL = auto()
     HOLY = auto()
     GODLIKE = auto()
-
 
 NEXT_RANK = {rank: next_rank for rank, next_rank in zip(GemRank, list(GemRank)[1:])}
 
@@ -36,16 +35,18 @@ class Gem:
         GemRank.GODLIKE : 'Göttlicher'
     }
 
-    def __init__(self, rank, owner):
+    def __init__(self, rank):
         self.rank = rank
-        self.owner = owner
         self.name = self.RANK_TO_NAME[rank] + ' ' + self.type_name
         self.stats = self.RANK_TO_EFFECT[rank]
 
-    def on_embedding(self):
+    def rank_up(self):
+        self.rank = NEXT_RANK[self.rank]
+
+    def on_embedding(self, item):
         pass
 
-    def on_removal(self):
+    def on_removal(self, item):
         pass
 
 
@@ -66,11 +67,11 @@ class StatGemMeta(type):
 
 class StatGem(Gem, metaclass=StatGemMeta):
 
-    def on_embedding(self):
-        self.owner.add_stats(self.stats)
+    def on_embedding(self, item):
+        item.add_stats(self.stats)
 
-    def on_removal(self):
-        self.owner.remove_stats(self.stats)
+    def on_removal(self, item):
+        item.remove_stats(self.stats)
 
     def __str__(self):
         return f'{self.name}:\n{self.stats}'
@@ -149,22 +150,20 @@ class EffectApplyingGemMeta(type):
                 f'expected {len(GemRank)}, got {len(cls.RANK_TO_EFFECT)}'
             )
         cls.RANK_TO_EFFECT = {
-            rank: effect for rank, effect in zip(GemRank, cls.RANK_TO_EFFECT)
+            rank: effect
+            for rank, effect
+            in zip(GemRank, cls.RANK_TO_EFFECT)
         }
 
 
 class EffectApplyingGem(Gem, metaclass=EffectApplyingGemMeta):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.effect = self.create_effect()
+    def on_embedding(self, item):
+        self.effect = self.create_effect(item)
+        item.owner.add_effect(self.effect)
 
-    def on_embedding(self):
-        self.owner.add_effect(self.effect)
-
-    def on_removal(self):
-        self.owner.remove_effect(self.effect)
-
+    def on_removal(self, item):
+        item.owner.remove_effect(self.effect)
 
 
 class ReflectDamageGem(EffectApplyingGem):
@@ -183,8 +182,10 @@ class ReflectDamageGem(EffectApplyingGem):
         {'percentage': 35},
     ]
 
-    def create_effect(self):
-        return None
+    def create_effect(self, item):
+        return build_effect(
+
+        )
 
 
 class PoisonGem(EffectApplyingGem):
@@ -203,16 +204,17 @@ class PoisonGem(EffectApplyingGem):
         {'damage_per_tick': 1500, 'total_ticks': 7}
     ]
 
-    def create_effect(self):
-        return create_random_effect(
-            effect_type=EffectAddingEffect,
+    def create_effect(self, item):
+        return RandomEffect(
+            # TODO: Put in real value
             chance=30,
-            trigger=Trigger.HIT,
-            owner=self.owner,
+            trigger=BattleTrigger.HIT,
+            owner=item.owner,
             self_targetting=False,
+            EffectType=EffectAddingEffect,
             effect_to_add={
                 'type': DotEffect,
-                'trigger': Trigger.ROUND_START,
+                'trigger': BattleTrigger.ROUND_START,
                 'damage': self.stats['damage_per_tick'],
                 'damage_type': DamageType.TRUE_DAMAGE,
                 'interval': 1,
