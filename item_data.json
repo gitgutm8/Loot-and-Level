@@ -1,0 +1,19 @@
+{
+  "beginner_sword": {
+    "type": "weapon",
+    "name": "Novizenschwert",
+    "rarity": "common",
+    "min_level": "1",
+    "max_level": 6,
+    "min_sockets": 0,
+    "max_sockets": 1,
+    "min_stats": {
+      "damage": 3,
+      "crit_chance": 0
+    },
+    "max_stats": {
+      "damage": 7,
+      "crit_chance": 3
+    }
+  }
+}

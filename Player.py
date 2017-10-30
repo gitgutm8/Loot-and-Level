@@ -1,4 +1,5 @@
 from collections import Iterable
+from functools import total_ordering
 from enum import Enum, auto
 from item import ItemType
 from entity import Entity
@@ -20,6 +21,7 @@ class Inventory:
         self.content.remove(item)
 
 
+@total_ordering
 class EntityLevel:
 
     def __init__(self, entity, first_xp, xp_rule, max_level, start_xp=0, start_level=1):
@@ -37,6 +39,12 @@ class EntityLevel:
             self.current_level += 1
             self.needed_xp = self.xp_rule(self.current_level)
             self.entity.level_up()
+
+    def __eq__(self, other):
+        return self.current_level == other
+
+    def __lt__(self, other):
+        return self.current_level < other
 
 
 class Player(Entity):
@@ -60,6 +68,8 @@ class Player(Entity):
     def pick_up(self, items):
         if not isinstance(items, Iterable):
             items = (items,)
+        for item in items:
+            item.get_picked_up(self)
         self.inventory.add(items)
 
     def combine_gems(self, g1, g2, g3):
@@ -72,6 +82,8 @@ class Player(Entity):
         pass
 
     def equip(self, item):
+        if not item.level <= self.level:
+            return
         previous_item = self.item_slots[item.type]
         if previous_item is not None:
             previous_item.on_unequip()

@@ -12,25 +12,22 @@
       "hp": 50,
       "damage": 5
     },
-    "drop_to_chance": {
-      "item_name": 5,
-      "item2": 10
+    "item_drops": {
+      "max_drops": 1,
+      "beginner_sword": 5
+    },
+    "gem_drops": {
+      "max_drops": 1,
+      "damage_gem": {
+        "drop_chance": 1,
+        "rank_to_chance":{
+          "broken": 70,
+          "impure": 30
+        }
+      }
     },
     "effect_to_chance": {
 
-    }
-  },
-  "big_spider": {
-    "inherits": "spider",
-    "name": "Mutterspinne",
-    "min_level": 4,
-    "min_stats": {
-      "hp": 50,
-      "damage": 4
-    },
-    "max_stats": {
-      "hp": 80,
-      "damage": [7, 2]
     }
   }
 }

@@ -43,6 +43,9 @@ class Gem:
     def rank_up(self):
         self.rank = NEXT_RANK[self.rank]
 
+    def get_picked_up(self, by):
+        pass
+
     def on_embedding(self, item):
         pass
 

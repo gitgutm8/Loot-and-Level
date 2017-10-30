@@ -44,12 +44,7 @@ if __name__ == '__main__':
     from stats import Stats, Stat
     import json
 
-    def load_stats(stats):
-        return Stats({
-            Stat[key.upper()]: value
-            for key, value
-            in stats.items()
-        })
+
 
     with open('monster_data.json', 'rt') as f:
         monsters = json.load(f)

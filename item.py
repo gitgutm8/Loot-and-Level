@@ -1,3 +1,4 @@
+import random
 from enum import Enum, auto
 from stats import Stats
 
@@ -20,20 +21,23 @@ class Rarity(Enum):
     RARE      = auto()
     EPIC      = auto()
     LEGENDARY = auto()
+    UNIQUE    = auto()
 
 
 class Item:
 
-    def __init__(self, type, name, owner, stats, socket_count, level, rarity, effects=None):
+    def __init__(self, type, name, stats, socket_count, level, rarity, effects=None):
         self.type = type
         self.name = name
-        self.owner = owner
         self.stats = stats
         self.sockets = [None,] * socket_count
         self.level = level
         self.rarity = rarity
         self.effects = effects or []
         self.blessing = None
+
+    def get_picked_up(self, who):
+        self.owner = who
 
     def on_equip(self):
         self.owner.add_stats(self.stats)
@@ -84,9 +88,9 @@ def ItemPrototype(
     effect_generators=None
 ):
     effect_generators = effect_generators or []
-    def inner(owner):
+    def inner():
         return Item(
-            type, name, owner,
+            type, name,
             stats=Stats.from_random_between(min_stats, max_stats),
             socket_count=random.randint(min_sockets, max_sockets),
             level=random.randint(min_level, max_level),
@@ -94,3 +98,9 @@ def ItemPrototype(
             effects=[eg() for eg in effect_generators]
         )
     return inner
+
+
+if __name__ == '__main__':
+    beginner_sword = ItemPrototype(
+        ItemType.WEAPON, 'Novizenschwert',Rarity.COMMON
+    )
