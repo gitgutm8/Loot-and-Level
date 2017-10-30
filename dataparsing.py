@@ -3,6 +3,7 @@ from dropgenerators import *
 from item import ItemType, ItemPrototype
 from monster import MonsterPrototype
 from stats import Stats, Stat
+from gem import *
 
 
 def _load_stats(stats):
@@ -14,6 +15,10 @@ def _load_stats(stats):
 
 
 class JsonDataParser:
+
+    gem_name_to_type = {
+        'damage_gem': DamageGem
+    }
 
     def __init__(self, item_data, monster_data):
         self.items = {}
@@ -39,27 +44,30 @@ class JsonDataParser:
         )
 
     def parse_item_drops(self, drops):
-        amount = drops.pop('max_drops')
+        amount = drops['max_drops']
         drops = {
-            self.items[name]: chance
-            for name, chance
-            in drops.items()
+            self.items[drop['item']]: drop['chance']
+            for drop
+            in drops["drops"]
         }
         return ItemDropGenerator(drops, num=amount)
 
     def parse_gem_drops(self, drops):
-        return lambda: []
-        amount = drops.pop('max_drops')
-        inputs = []
-        gem_chances = []
-        # FIXME: Does not work right now, needs a way to map json keys to actual gem types.
-        # FIXME: Revamp drop system regarding gemranks
-        for GemType, chances in drops.items():
-            inputs.append(GemDropInput(GemType, chances['rank_to_chance']))
-            gem_chances.append(chances['drop_chance'])
-        print(inputs, gem_chances)
+        amount = drops['max_drops']
+        gem_to_chance, ranks_to_chances = {}, []
+        for drop in drops['drops']:
+            GemType = self.gem_name_to_type[drop['type']]
+            chance = drop['chance']
+            gem_to_chance[GemType] = chance
+            rank_to_chance = {
+                GemRank[rank.upper()]: chance
+                for rank, chance
+                in drop['rank_to_chance'].items()
+            }
+            ranks_to_chances.append(rank_to_chance)
         return GemDropGenerator(
-            dict(zip(inputs, gem_chances)),
+            gem_to_chance,
+            ranks_to_chances,
             num=amount
         )
 

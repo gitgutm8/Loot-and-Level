@@ -81,7 +81,7 @@ class Item:
 
     def __str__(self):
         return f"""
-Name: {self.name},
+Name: {self.name}
 Boni: {self.stats}    
 """
 

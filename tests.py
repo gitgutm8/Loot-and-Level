@@ -1,3 +1,4 @@
+import pytest
 from player import *
 from effect import *
 from stat import *
@@ -9,61 +10,76 @@ from dropgenerators import *
 from dataparsing import *
 
 
-def test_gem_embedding():
-    p = Player(Stats({Stat.MAX_HP: 100, Stat.HP: 80}))
-    i = Item(ItemType.WEAPON, '', Stats(), socket_count=2, level=0, rarity=Rarity.COMMON)
-    p.pick_up(i)
-    p.equip(i)
+@pytest.fixture
+def statless_player():
+    return Player(Stats())
+
+@pytest.fixture
+def weapon_with_two_sockets():
+    return Item(ItemType.WEAPON, '', Stats(), socket_count=2, level=0, rarity=Rarity.COMMON)
+
+@pytest.fixture
+def weapon_with_damage():
+    return Item(ItemType.WEAPON, '', Stats({Stat.DAMAGE: 100}), 0, 0, Rarity.COMMON)
+
+
+def test_gem_embedding(statless_player, weapon_with_two_sockets):
+    statless_player.pick_up(weapon_with_two_sockets)
+    statless_player.equip(weapon_with_two_sockets)
     g1 = DamageGem(GemRank.IMPURE)
     g2 = DamageGem(GemRank.GODLIKE)
     g3 = DamageGem(GemRank.BROKEN)
     for g in [g1, g2, g3]:
-        i.embed_gem(g)
-    assert p.stats[Stat.DAMAGE] == 15007, 'embedding gems unsuccessful'
-    i.remove_gem(0)
-    assert p.stats[Stat.DAMAGE] == 15000, 'removing gem unsuccessful'
-    i.remove_gem(1)
-    assert p.stats[Stat.DAMAGE] == 0, 'removing gem unsuccessful'
+        weapon_with_two_sockets.embed_gem(g)
+    assert statless_player.stats[Stat.DAMAGE] == 15007, 'embedding gems unsuccessful'
+    weapon_with_two_sockets.remove_gem(0)
+    assert statless_player.stats[Stat.DAMAGE] == 15000, 'removing gem unsuccessful'
+    weapon_with_two_sockets.remove_gem(1)
+    assert statless_player.stats[Stat.DAMAGE] == 0, 'removing gem unsuccessful'
 
 
-def test_dot_effect():
+@pytest.mark.parametrize(
+    'interval,ticks,damage,solution',
+    [
+        (2, 5, 10, [80, 70, 70, 60, 60, 50, 50, 40, 40] + [30] * 11),
+        (1, 10, 4, [76, 72, 68, 64, 60, 56, 52, 48, 44] + [40] * 11)
+    ]
+)
+def test_dot_effect(interval, ticks, damage, solution):
     p = Player(Stats({Stat.MAX_HP: 100, Stat.HP: 80}))
     p.add_effect(DotEffect(
         trigger=BattleTrigger.ROUND_START,
-        interval=2,
-        ticks=5,
-        damage=10,
+        interval=interval,
+        ticks=ticks,
+        damage=damage,
         damage_type=DamageType.WATER,
         owner=p
     ))
-    solution = [80, 70, 70, 60, 60, 50, 50, 40, 40] + [30] * 11
+    #solution = [80, 70, 70, 60, 60, 50, 50, 40, 40] + [30] * 11
     for i in range(20):
         p.on_trigger(BattleTrigger.ROUND_START)
         assert p.stats[Stat.HP] == solution[i], 'damage of dot effect applied incorrectly'
 
 
-def test_poison_gem():
-    p = Player(Stats({Stat.MAX_HP: 100, Stat.HP: 80}))
-    p.enemy = Entity(Stats({Stat.HP: 100}))
-    i = Item(ItemType.NECKLACE, '[name]', Stats(), 1, 90, Rarity.EPIC)
-    p.pick_up(i)
-    p.equip(i)
-    g = PoisonGem(GemRank.IMPURE)
-    i.embed_gem(g)
+def test_weapon_equipping(statless_player, weapon_with_damage):
+    statless_player.pick_up(weapon_with_damage)
+    statless_player.equip(weapon_with_damage)
+    assert statless_player.stats[Stat.DAMAGE] == weapon_with_damage.stats[Stat.DAMAGE]
 
 
-def test_blessing():
-    p = Player(Stats())
-    i = Item(ItemType.WEAPON, '', Stats({Stat.DAMAGE: 100}), 1, 1, Rarity.LEGENDARY)
-    p.pick_up(i)
-    p.equip(i)
-    assert p.stats[Stat.DAMAGE] == 100, 'equipping weapon does not add damage'
-    b = SingleStatBlessing(Stat.DAMAGE, 1.5)
-    i.bless(b)
-    assert p.stats[Stat.DAMAGE] == 150, 'blessing does not add damage correctly'
-    g = DamageGem(GemRank.GODLIKE)
-    i.embed_gem(g)
-    assert p.stats[Stat.DAMAGE] == (100 + 15000) * 1.5, 'blessing + gem working incorrectly'
+@pytest.mark.parametrize(
+    'multiplicator', [1.5, 2, 5]
+)
+def test_blessing(statless_player, weapon_with_damage, multiplicator):
+    statless_player.pick_up(weapon_with_damage)
+    statless_player.equip(weapon_with_damage)
+    b = SingleStatBlessing(Stat.DAMAGE, multiplicator)
+    damage_before_blessing = weapon_with_damage.stats[Stat.DAMAGE]
+    weapon_with_damage.bless(b)
+    assert statless_player.stats[Stat.DAMAGE] == damage_before_blessing * multiplicator, 'blessing does not add damage correctly'
+    #g = DamageGem(GemRank.GODLIKE)
+    #weapon_with_damage.embed_gem(g)
+    #assert statless_player.stats[Stat.DAMAGE] == (100 + 15000) * 1.5, 'blessing + gem working incorrectly'
 
 
 def test_gem_combining():
@@ -102,17 +118,10 @@ def test_data():
         monster_data = json.load(mdata)
     data = JsonDataParser(item_data, monster_data)
     try:
-        print(data.monsters['spider']().drops[0])
+        print(data.monsters['spider']().drops[1])
     except IndexError:
         print('no drops :(')
 
 
-test_gem_embedding()
-test_dot_effect()
-test_poison_gem()
-test_blessing()
-test_gem_combining()
-#test_item_drop_generator()
-test_data()
-
-print('all tests successful')
+if __name__ == '__main__':
+    test_data()

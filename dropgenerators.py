@@ -1,29 +1,22 @@
 import random
-from functools import partial, wraps
+from functools import partial
 from collections import namedtuple
 
 
-def _fill_up_percentage(func):
-    @wraps(func)
-    def wrapper(something_to_chance, *args, **kwargs):
-        missing_percent = 100 - sum(something_to_chance.values())
-        if missing_percent < 0:
-            raise ValueError('cannot have more than 100 percent')
-        something_to_chance[None] = missing_percent
-        return func(something_to_chance, *args, **kwargs)
-    return wrapper
+def _fill_up_percentage(something_to_chances):
+    missing_percent = 100 - sum(something_to_chances.values())
+    if missing_percent < 0:
+        raise ValueError('cannot have more than 100 percent')
+    something_to_chances[None] = missing_percent
 
 
-@_fill_up_percentage
 def ItemDropGenerator(item_prototype_to_chance, num=1):
+    _fill_up_percentage(item_prototype_to_chance)
     item_prototypes, chances = zip(*item_prototype_to_chance.items())
-    def generate():
+    def generate_item():
         prototypes = random.choices(item_prototypes, chances, k=num)
         return [p() for p in prototypes if p]
-    return generate
-
-
-GemDropInput = namedtuple('_GemDropInput', ['type', 'rank_to_chance'])
+    return generate_item
 
 
 def _get_random_gem_rank(rank_to_chance):
@@ -31,18 +24,24 @@ def _get_random_gem_rank(rank_to_chance):
     return lambda: random.choices(ranks, chances)[0]
 
 
-@_fill_up_percentage
-def GemDropGenerator(drop_to_chance, num=1):
-    gem_drops, chances = zip(*drop_to_chance.items())
-    gem_to_rank_randomizer = {
-        gem_drop.type: _get_random_gem_rank(gem_drop.rank_to_chance) for gem_drop in gem_drops
+def GemDropGenerator(
+    gem_to_chance: dict,
+    ranks_to_chances: list,
+    num=1
+):
+    _fill_up_percentage(gem_to_chance)
+    gem_types, chances = zip(*gem_to_chance.items())
+    type_to_rank_randomizer = {
+        GemType: _get_random_gem_rank(rank_to_chance)
+        for GemType, rank_to_chance
+        in zip(gem_types, ranks_to_chances)
     }
-    GemTypes = [gem_drop.type for gem_drop in gem_drops]
-    def generate():
-        GemTypes = random.choices(GemTypes, chances, k=num)
+    def generate_gem():
+        chosen_gem_types = random.choices(gem_types, chances, k=num)
         return [GemType(
-            rank=gem_to_rank_randomizer[GemType]()
-        ) for GemType in GemTypes if GemType]
+            rank=type_to_rank_randomizer[GemType]()
+        ) for GemType in chosen_gem_types if GemType]
+    return generate_gem
 
 
 def CurrencyDropGenerator(min, max):

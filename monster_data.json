@@ -14,17 +14,25 @@
     },
     "item_drops": {
       "max_drops": 1,
-      "beginner_sword": 5
+      "drops": [
+        {
+          "item": "beginner_sword",
+          "chance": 100
+        }
+      ]
     },
     "gem_drops": {
       "max_drops": 1,
-      "damage_gem": {
-        "drop_chance": 1,
-        "rank_to_chance":{
-          "broken": 70,
-          "impure": 30
+      "drops": [
+        {
+          "type": "damage_gem",
+          "chance": 100,
+          "rank_to_chance": {
+            "broken": 70,
+            "impure": 30
+          }
         }
-      }
+      ]
     },
     "effect_to_chance": {
 

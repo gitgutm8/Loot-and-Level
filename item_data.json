@@ -14,6 +14,9 @@
     "max_stats": {
       "damage": 7,
       "crit_chance": 3
+    },
+    "effect_to_chance": {
+
     }
   }
 }
