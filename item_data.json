@@ -18,5 +18,22 @@
     "effect_to_chance": {
 
     }
+  },
+  "ring_of_death": {
+    "type": "ring",
+    "name": "Ring des Todes",
+    "rarity": "unique",
+    "min_level": 50,
+    "max_level": 50,
+    "min_sockets": 4,
+    "max_sockets": 5,
+    "min_stats": {
+      "damage": 153000,
+      "crit_bonus": [0, 1.1]
+    },
+    "max_stats": {
+      "damage": 175000,
+      "crit_bonus": [0, 1.15]
+    }
   }
 }

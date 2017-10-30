@@ -11,6 +11,14 @@ def _fill_up_percentage(something_to_chances):
 
 
 def ItemDropGenerator(item_prototype_to_chance, num=1):
+    """
+    Returns a callable that generates items using the given prototypes and chances.
+    Chances do not have to add up to (but must not exceed) 100.
+
+    :param item_prototype_to_chance: Mapping from item prototype to its chance to drop.
+    :param num: maximum number of items that may drop.
+    :return: callable generating items
+    """
     _fill_up_percentage(item_prototype_to_chance)
     item_prototypes, chances = zip(*item_prototype_to_chance.items())
     def generate_item():
@@ -44,8 +52,10 @@ def GemDropGenerator(
     return generate_gem
 
 
-def CurrencyDropGenerator(min, max):
-    return partial(random.randint, min, max)
+def CurrencyDropGenerator(Currency, min, max):
+    def generate_currency():
+        return Currency(random.randint(min, max))
+    return generate_currency
 
 
 def EffectGenerator():

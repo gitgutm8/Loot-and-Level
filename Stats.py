@@ -55,7 +55,7 @@ class Stats:
             max_stat = upper._dict[stat_type]
             new_stats[stat_type] = (
                 random.randint(min_stat.add, max_stat.add),
-                random.randint(min_stat.mul, max_stat.mul),
+                round(random.uniform(min_stat.mul, max_stat.mul), 2)
             )
         return cls(new_stats)
 
