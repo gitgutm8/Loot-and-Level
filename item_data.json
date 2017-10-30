@@ -3,7 +3,7 @@
     "type": "weapon",
     "name": "Novizenschwert",
     "rarity": "common",
-    "min_level": "1",
+    "min_level": 1,
     "max_level": 6,
     "min_sockets": 0,
     "max_sockets": 1,

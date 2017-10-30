@@ -79,6 +79,12 @@ class Item:
         self.blessing = blessing
         blessing.add(self)
 
+    def __str__(self):
+        return f"""
+Name: {self.name},
+Boni: {self.stats}    
+"""
+
 
 def ItemPrototype(
     type, name, rarity,
@@ -88,7 +94,7 @@ def ItemPrototype(
     effect_generators=None
 ):
     effect_generators = effect_generators or []
-    def inner():
+    def generate_item():
         return Item(
             type, name,
             stats=Stats.from_random_between(min_stats, max_stats),
@@ -97,7 +103,7 @@ def ItemPrototype(
             rarity=rarity,
             effects=[eg() for eg in effect_generators]
         )
-    return inner
+    return generate_item
 
 
 if __name__ == '__main__':

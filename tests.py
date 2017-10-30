@@ -101,8 +101,10 @@ def test_data():
         item_data = json.load(idata)
         monster_data = json.load(mdata)
     data = JsonDataParser(item_data, monster_data)
-    for d in data:
-        print(d())
+    try:
+        print(data.monsters['spider']().drops[0])
+    except IndexError:
+        print('no drops :(')
 
 
 test_gem_embedding()

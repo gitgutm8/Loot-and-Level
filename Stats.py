@@ -42,7 +42,6 @@ class Stats:
 
     def __init__(self, initial_values={}):
         self._dict = defaultdict(Stats._Stat)
-        print(initial_values)
         for stat_type, val in initial_values.items():
             if isinstance(val, Iterable):
                 self._dict[stat_type] = Stats._Stat(*val)

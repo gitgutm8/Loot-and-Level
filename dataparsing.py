@@ -33,7 +33,7 @@ class JsonDataParser:
         # TODO: Does not handle effects right now.
         return ItemPrototype(
             type, name, rarity,
-            Stats(min_stats), Stats(max_stats),
+            min_stats, max_stats,
             min_sockets, max_sockets,
             min_level, max_level
         )
@@ -48,7 +48,7 @@ class JsonDataParser:
         return ItemDropGenerator(drops, num=amount)
 
     def parse_gem_drops(self, drops):
-        return lambda: 0
+        return lambda: []
         amount = drops.pop('max_drops')
         inputs = []
         gem_chances = []
