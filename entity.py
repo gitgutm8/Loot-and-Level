@@ -1,15 +1,4 @@
-from enum import Enum, auto
 from stats import DamageType, Stat, DAMAGE_TYPE_TO_RESISTANCE, Stats
-
-
-class BattleTrigger(Enum):
-    HIT = auto()
-    ROUND_START = auto()
-    BATTLE_START = auto()
-    HIT_BY_ENEMY = auto()
-    BATTLE_END = auto()
-    BATTLE_WON = auto()
-    BATTLE_LOST = auto()
 
 
 class Entity:
@@ -17,17 +6,34 @@ class Entity:
     def __init__(self, stats, effects=None):
         self.stats = stats
         self.effects = effects or []
+        self.battle_wrappers = []
 
     def receive_damage(self, amount, type):
         amount = self._calculate_damage(amount, type)
         self.remove_stats(Stats({Stat.HP: amount}))
-        if self.stats[Stat.HP] <= 0:
-            """self.die()"""
+        return amount
 
     def _calculate_damage(self, amount, type):
         if type == DamageType.TRUE_DAMAGE:
             return amount
         return amount - self.stats[Stat.ARMOR] - self.stats[DAMAGE_TYPE_TO_RESISTANCE[type]]
+
+    def add_battle_wrapper(self, bw):
+        self.battle_wrappers.append(bw)
+
+    def remove_battle_wrapper(self, bw):
+        self.battle_wrappers.remove(bw)
+
+    def prepare_battle_wrappers(self):
+        for bw in self.battle_wrappers:
+            bw.prepare(self)
+
+    def cleanup_battle_wrappers(self):
+        for bw in self.battle_wrappers:
+            bw.cleanup(self)
+
+    def alive(self):
+        return self.stats[Stat.HP] > 0
 
     def heal(self, amount):
         amount = min(amount, self.missing_hp())
@@ -55,6 +61,3 @@ class Entity:
 
     def has_effect(self, effect):
         return effect in self.effects
-
-    def get_enemy(self):
-        return self.enemy
