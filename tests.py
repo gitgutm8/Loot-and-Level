@@ -8,6 +8,7 @@ from blessing import *
 from entity import *
 from dropgenerators import *
 from dataparsing import *
+from battle import *
 
 
 @pytest.fixture
@@ -29,6 +30,10 @@ def weapon_with_damage():
 @pytest.fixture
 def weapon_with_damage_and_sockets():
     return Item(ItemType.WEAPON, '', Stats({Stat.DAMAGE: 100}), 10, 0, Rarity.COMMON)
+
+@pytest.fixture
+def simple_battle(my_player):
+    return Battle(my_player, Entity(Stats()))
 
 
 def test_only_additive_stat_initialization():
@@ -97,7 +102,7 @@ def test_dot_effect(interval, ticks, damage, solution):
         ticks=ticks,
         damage=damage,
         damage_type=DamageType.WATER,
-        owner=p
+        target=p
     ))
     for i in range(20):
         p.on_trigger(BattleTrigger.ROUND_START)
@@ -136,6 +141,28 @@ def test_gem_combining():
     assert p.inventory.content == [g1], 'combining does not remove gems from inventory'
 
 
+def test_poison_gem_adding_and_removing_battle_wrapper_on_embedding_and_removal(my_player, weapon_with_two_sockets):
+    g = PoisonGem(GemRank.BROKEN)
+    my_player.pick_up(weapon_with_two_sockets)
+    weapon_with_two_sockets.embed_gem(g)
+    assert len(my_player.battle_wrappers) == 1
+    weapon_with_two_sockets.remove_gem(0)
+    assert my_player.battle_wrappers == []
+
+
+def test_poison_gem_adding_and_removing_effect_in_battle(my_player, simple_battle, weapon_with_two_sockets):
+    g = PoisonGem(GemRank.BROKEN)
+    my_player.pick_up(weapon_with_two_sockets)
+    weapon_with_two_sockets.embed_gem(g)
+    my_player.current_battle = simple_battle
+    my_player.prepare_battle_wrappers()
+    eff = my_player.effects[0]
+    assert isinstance(eff, EffectAddingEffect)
+    assert eff.EffectType is DotEffect
+    my_player.cleanup_battle_wrappers()
+    assert my_player.effects == []
+
+
 def test_item_drop_generator():
     dg = ItemDropGenerator(
         {
@@ -152,12 +179,35 @@ def test_item_drop_generator():
     assert i.name == 'Schwert der Schwere'
 
 
+def test_battle_rounds():
+    p = Player(Stats({Stat.HP: 100, Stat.DAMAGE: 10}))
+    e = Entity(Stats({Stat.HP: 25, Stat.DAMAGE: 5}))
+    b = Battle(p, e)
+    for i in range(1, 6):
+        b._play_round()
+        assert b.current_round == i
+        assert p.stats[Stat.HP] == 100 - 5*i
+        assert e.stats[Stat.HP] == 25 - 10*i
+
+
+def test_reflection_gem_reflecting_damage(weapon_with_two_sockets):
+    p = Player(Stats({Stat.HP: 1000}))
+    p.pick_up(weapon_with_two_sockets)
+    p.equip(weapon_with_two_sockets)
+    g = ReflectDamageGem(GemRank.GODLIKE)
+    assert g.stats['percentage'] == 35
+    weapon_with_two_sockets.embed_gem(g)
+    e = Entity(Stats({Stat.HP: 100, Stat.DAMAGE: 100}))
+    b = Battle(p, e)
+    b._begin()
+    b._play_round()
+    assert p.stats[Stat.HP] == 900
+    assert e.stats[Stat.HP] == 65
+
+
+
 def test_data():
-    import json
-    with open('item_data.json') as idata, open('monster_data.json', 'rt') as mdata:
-        item_data = json.load(idata)
-        monster_data = json.load(mdata)
-    data = JsonDataParser(item_data, monster_data)
+    data = JsonDataParser('data', 'effects.json', 'item_data.json', 'monster_data.json')
     print(data.items['ring_of_death']())
     try:
         print(data.monsters['spider']().drops[1])
