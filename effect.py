@@ -6,22 +6,12 @@ from copy import deepcopy
 class _Effect:
     """Everything that can change something while battling."""
 
-    def __init__(self, trigger, owner, self_targetting=True):
+    def __init__(self, trigger, target):
         self.trigger = trigger
-        self.owner = owner
-        self.self_targetting = self_targetting
-
-    @property
-    def target(self):
-        if self.self_targetting:
-            return self.owner
-        return self.owner.get_enemy()
+        self.target = target
 
     def apply(self):
         pass
-
-    def remove(self):
-        self.owner.remove_effect(self)
 
 
 class _DamagingEffect(_Effect):
@@ -45,17 +35,27 @@ class _HealingEffect(_Effect):
         self.target.heal(self.heal_amount)
 
 
+class ParametrizedDamageEffect(_DamagingEffect):
+
+    def __init__(self, *args, calculator, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.calculator = calculator
+
+    def apply(self):
+        self.calculator(self)
+        super().apply()
+
+
 class EffectAddingEffect(_Effect):
 
-    def __init__(self, effect_to_add, *args, **kwargs):
+    def __init__(self, *args, effect_to_add, **kwargs):
         """
-        :param dict effect_to_add:
+        :param effect_to_add:
             A mapping having the following structure:
                 {
                 'type': class of effect to create,
                 other key-value pairs representing the
-                attributes the new effect needs, except
-                for `owner`
+                attributes the new effect needs
                 }
         """
         super().__init__(*args, **kwargs)
@@ -63,7 +63,7 @@ class EffectAddingEffect(_Effect):
         self.effect_to_add = effect_to_add
 
     def apply(self):
-        eff = self.EffectType(**self.effect_to_add, owner=self.target)
+        eff = self.EffectType(**self.effect_to_add, target=self.target)
         self.target.add_effect(eff)
 
 
@@ -71,14 +71,14 @@ class ConditionalEffect:
 
     def __init__(self, *args, condition, **kwargs):
         super().__init__(*args, **kwargs)
-        sig = inspect.signature(condition)
+        #sig = inspect.signature(condition)
         # Can't have a condition function with no arguments
-        if (len(sig.parameters)) == 0:
-            condition = lambda _: condition()
+        #if (len(sig.parameters)) == 0:
+         #   condition = lambda _: condition()
         self.condition = condition
 
     def apply(self):
-        if self.condition(self):
+        if self.condition():
             super().apply()
 
 
@@ -87,11 +87,14 @@ class TimedEffect:
     def __init__(self, *args, times, **kwargs):
         super().__init__(*args, **kwargs)
         self.times = times
+        self.alive = True
 
     def apply(self):
+        if not self.alive:
+            return
         self.times -= 1
         if self.times < 0:
-            self.remove()
+            self.alive = False
         else:
             super().apply()
 
@@ -120,6 +123,7 @@ def build_effect(*effects, **attrs):
 
 
 def DotEffect(ticks, interval, **kwargs):
+    # kwargs need damage, trigger and self_targetting
     return build_effect(
         DelayedEffect, TimedEffect, _DamagingEffect,
         times=ticks, delay=interval, **kwargs
