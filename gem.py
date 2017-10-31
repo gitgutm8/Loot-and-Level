@@ -1,8 +1,8 @@
 import random
 from enum import Enum, auto
 from stats import *
-from entity import BattleTrigger
-from effect import DotEffect, RandomEffect, EffectAddingEffect
+from battle import BattleTrigger
+from effect import *
 
 
 class GemRank(Enum):
@@ -169,7 +169,20 @@ class EffectApplyingGem(Gem, metaclass=EffectApplyingGemMeta):
         item.owner.remove_effect(self.effect)
 
 
-class ReflectDamageGem(EffectApplyingGem):
+class EnemyAffectingGem(EffectApplyingGem):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.wrapper = self._create_battle_wrapper()
+
+    def on_embedding(self, item):
+        item.owner.add_battle_wrapper(self.wrapper)
+
+    def on_removal(self, item):
+        item.owner.remove_battle_wrapper(self.wrapper)
+
+
+class ReflectDamageGem(EnemyAffectingGem):
 
     type_name = 'Obsidian'
 
@@ -185,13 +198,34 @@ class ReflectDamageGem(EffectApplyingGem):
         {'percentage': 35},
     ]
 
-    def create_effect(self, item):
-        return build_effect(
+    def _create_battle_wrapper(self):
+        class Wrapper:
 
-        )
+            def prepare(wrapper, owner):
+                wrapper.effect = ParametrizedDamageEffect(
+                    trigger=BattleTrigger.HIT_BY_ENEMY,
+                    target=owner.current_battle.enemy_of(owner),
+                    damage=0,
+                    damage_type=0,
+                    calculator=self._damage_calculator(owner.current_battle)
+                )
+                owner.add_effect(wrapper.effect)
+
+            def cleanup(wrapper, owner):
+                owner.remove_effect(wrapper.effect)
+
+        return Wrapper()
+
+    def _damage_calculator(self, battle):
+        def inner(damage_effect):
+            attack = battle.last_action()
+            damage_effect.damage = attack['damage_dealt'] / 100 * self.stats['percentage']
+            damage_effect.damage_type = attack['dtype']
+        return inner
 
 
-class PoisonGem(EffectApplyingGem):
+
+class PoisonGem(EnemyAffectingGem):
 
     type_name = 'Peridot'
 
@@ -207,23 +241,31 @@ class PoisonGem(EffectApplyingGem):
         {'damage_per_tick': 1500, 'total_ticks': 7}
     ]
 
-    def create_effect(self, item):
-        return RandomEffect(
-            # TODO: Put in real value
-            chance=30,
-            trigger=BattleTrigger.HIT,
-            owner=item.owner,
-            self_targetting=False,
-            EffectType=EffectAddingEffect,
-            effect_to_add={
-                'type': DotEffect,
-                'trigger': BattleTrigger.ROUND_START,
-                'damage': self.stats['damage_per_tick'],
-                'damage_type': DamageType.TRUE_DAMAGE,
-                'interval': 1,
-                'total_ticks': self.stats['total_ticks']
-            }
-        )
+    def _create_battle_wrapper(self):
+        class Wrapper:
+
+            def prepare(wrapper, owner):
+                wrapper.effect = RandomEffect(
+                    # TODO: Put in real value
+                    chance=30,
+                    trigger=BattleTrigger.HIT,
+                    target=owner.current_battle.enemy_of(owner),
+                    EffectType=EffectAddingEffect,
+                    effect_to_add={
+                        'type': DotEffect,
+                        'trigger': BattleTrigger.ROUND_START,
+                        'damage': self.stats['damage_per_tick'],
+                        'damage_type': DamageType.TRUE_DAMAGE,
+                        'interval': 1,
+                        'total_ticks': self.stats['total_ticks']
+                    }
+                )
+                owner.add_effect(wrapper.effect)
+
+            def cleanup(self, owner):
+                owner.remove_effect(self.effect)
+
+        return Wrapper()
 
 
 if __name__ == '__main__':
